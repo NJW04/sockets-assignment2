@@ -13,7 +13,7 @@ def get_local_ip():
     except socket.error:
         return "Unable to determine IP address"
 
-PORT = 5050
+PORT = 5051
 SERVER = get_local_ip() #Instead of hard coding in the IP Address this gets the IP Address of local machines
 #SERVER = "196.24.190.87"
 ADDRESS = (SERVER,PORT) #This is the exact address with matching IP and Port number for the server
@@ -39,8 +39,7 @@ help_message = "Available Commands:\n" \
 
 def handleClient(connectionSocket, addr):
     print(f"[NEW CONNECTION] {addr} connected.")
-    activeClients.append(addr)  #Adds a tuple containing clients IP and port number
-    #clientStatus[addr] = "active"
+    activeClients.append(addr)  #Adds a tuple containing clients TCP IP and port number
     connected = True
     try:
         while connected:
@@ -53,9 +52,12 @@ def handleClient(connectionSocket, addr):
                         connectionSocket.send("You have disconnected,bye!".encode(FORMAT))
                     connected= False
                 elif msg[0:4] == "JOIN":
-                    clientInfoArr = msg.split()
-                    activeClientsUsername[clientInfoArr[3]] = addr  #this is where it maps the clients username to their TCP port
-                    connectionSocket.send((f"\n{clientInfoArr[3]}, you have successfully joined the server").encode(FORMAT))
+                    if msgArr[3] in activeUDPClientsUsername:
+                        connectionSocket.send("already exists".encode(FORMAT))
+                    else:
+                        clientInfoArr = msg.split()
+                        activeClientsUsername[clientInfoArr[3]] = addr  #this is where it maps the clients username to their TCP port
+                        connectionSocket.send("you have successfully joined the server".encode(FORMAT))
                 elif msg == "!list":
                     returnStr = "This is the list of active clients:\n"
                     for key, value in activeUDPClientsUsername.items():
@@ -65,11 +67,15 @@ def handleClient(connectionSocket, addr):
                 elif msg == "!help":
                         connectionSocket.send(help_message.encode(FORMAT))
                 elif msgArr[0] == "!hide":
-                    if not (clientStatus[(msgArr[1],msgArr[2])] == "hidden"):
+                    if (clientStatus[(msgArr[1],msgArr[2])] == "hidden"):
+                        connectionSocket.send(f"You are already hidden".encode(FORMAT))
+                    else:
                         clientStatus[(msgArr[1],msgArr[2])] = "hidden"
-                        connectionSocket.send(f"You have been hidden".encode(FORMAT))
+                        connectionSocket.send(f"You are now hidden".encode(FORMAT))
                 elif msgArr[0] == "!active":
-                    if not (clientStatus[(msgArr[1],msgArr[2])] == "active"):
+                    if (clientStatus[(msgArr[1],msgArr[2])] == "active"):
+                        connectionSocket.send(f"You are already active".encode(FORMAT))
+                    else:
                         clientStatus[(msgArr[1],msgArr[2])] = "active"
                         connectionSocket.send(f"You are now active".encode(FORMAT))
                 elif msgArr[0] == "UDP":    # 0 is string 'udp', 1 is ip, 2 is port number, 3 is username

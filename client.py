@@ -55,7 +55,8 @@ def start_client(username):
     client_udp_socket.bind(('196.24.189.216',0))
     #client_udp_socket.bind((get_local_ip,0))
     udpAddress, udpPort = client_udp_socket.getsockname()    #Different port and ip for udp socket
-     
+    
+    print(f"\n{username}, you have successfully joined the server")
     sendToServer(f"UDP {udpAddress} {udpPort} {username}")  
     
 
@@ -141,9 +142,16 @@ clientInfoArr = clientInfo.split()   #[JOIN],[123.123.4.5],[5050],Nathan
 PORT = int(clientInfoArr[2])
 SERVER = clientInfoArr[1]
 ADDRESS = (SERVER,PORT)
+
 try:
     client_socket.connect(ADDRESS) #Client connecting to address of server
-    sendToServer(clientInfo)
+    serverResponse = sendToServerReturn(clientInfo)
+    while serverResponse == "already exists":
+        print("Already Exists")
+        clientInfo = joinCommand()
+        clientInfoArr = clientInfo.split()
+        serverResponse = sendToServerReturn(clientInfo)
+            
     start_client(clientInfoArr[3])
 except (socket.error, socket.timeout,ConnectionError) as e:
         print(f"Error: Unable to connect to the server. {e}")
