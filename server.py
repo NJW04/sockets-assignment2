@@ -23,7 +23,7 @@ DISCONNECT_MESSAGE = "!disconnect"
 serverSocket = socket.socket(socket.AF_INET,socket.SOCK_STREAM)   #SOCK_STREAM is needed for TCP server
 serverSocket.bind(ADDRESS)
 
-#Array keeping the IP and Port number of all active clients, maybe turn this into dictionary which maps addr to online status
+#Array keeping the IP and Port number of all active clients
 activeClients = []
 clientStatus = {}
 activeClientsUsername = {}
@@ -32,7 +32,7 @@ activeUDPClientsUsername = {}
 help_message = "Available Commands:\n" \
                    "- !help: Display a list of available commands.\n" \
                    "- !list: Display a list of active clients.\n" \
-                   "- message [recipientUsername] [content]: Send a message to another client.\n" \
+                   "- SEND <recipientUsername> <content>: Send a message to another client.\n" \
                     "- !hide: Hide yourself to not appear to any other client\n" \
                     "- !active: Set yourself as active to be seen by other clients\n" \
                    "- !disconnect: Disconnect from the server.\n"
@@ -46,14 +46,17 @@ def handleClient(connectionSocket, addr):
             msg = connectionSocket.recv(2048).decode(FORMAT)   #Number of bytes it receives, it blocks on this line until it receives
             msgArr = msg.split()
             if msg:
-                if msg == DISCONNECT_MESSAGE:
+                if msgArr[0] == DISCONNECT_MESSAGE:
                     if addr in activeClients:
                         activeClients.remove(addr)     #Removing the address from active clients
-                        connectionSocket.send("You have disconnected,bye!".encode(FORMAT))
+                    del activeClientsUsername[msgArr[1]]
+                    del activeUDPClientsUsername[msgArr[1]]
+                    connectionSocket.send("You have disconnected,bye!".encode(FORMAT))
+                    print(f"[ACTIVE CONNECTIONS] {threading.active_count() - 2}")
                     connected= False
                 elif msg[0:4] == "JOIN":
                     if msgArr[3] in activeUDPClientsUsername:
-                        connectionSocket.send("already exists".encode(FORMAT))
+                        connectionSocket.send("That username already exists".encode(FORMAT))
                     else:
                         clientInfoArr = msg.split()
                         activeClientsUsername[clientInfoArr[3]] = addr  #this is where it maps the clients username to their TCP port
