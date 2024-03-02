@@ -13,7 +13,7 @@ def get_local_ip():
     except socket.error:
         return "Unable to determine IP address"
 
-PORT = 5051
+PORT = 5050
 SERVER = get_local_ip() #Instead of hard coding in the IP Address this gets the IP Address of local machines
 #SERVER = "196.24.190.87"
 ADDRESS = (SERVER,PORT) #This is the exact address with matching IP and Port number for the server
@@ -55,18 +55,22 @@ def handleClient(connectionSocket, addr):
                     print(f"[ACTIVE CONNECTIONS] {threading.active_count() - 2}")
                     connected= False
                 elif msg[0:4] == "JOIN":
-                    if msgArr[3] in activeUDPClientsUsername:
-                        connectionSocket.send("That username already exists".encode(FORMAT))
+                    if msgArr[3] in activeClientsUsername:
+                        connectionSocket.send("exists".encode(FORMAT))
                     else:
                         clientInfoArr = msg.split()
                         activeClientsUsername[clientInfoArr[3]] = addr  #this is where it maps the clients username to their TCP port
                         connectionSocket.send("you have successfully joined the server".encode(FORMAT))
                 elif msg == "!list":
+                    
                     returnStr = "This is the list of active clients:\n"
                     for key, value in activeUDPClientsUsername.items():
                         if clientStatus[value] == "active":
                             returnStr += (f"{key}: {value}\n")   
-                    connectionSocket.send(returnStr.encode(FORMAT))
+                    if returnStr == "This is the list of active clients:\n":
+                        connectionSocket.send("There are currently no active users showing up\n".encode(FORMAT))
+                    else:
+                        connectionSocket.send(returnStr.encode(FORMAT))
                 elif msg == "!help":
                         connectionSocket.send(help_message.encode(FORMAT))
                 elif msgArr[0] == "!hide":
@@ -103,7 +107,7 @@ def handleClient(connectionSocket, addr):
 
 def start():
     serverSocket.listen(1)    #waits for incoming TCP requests.
-    print(f"[LISTENING] server is listening on {SERVER}")
+    print(f"[LISTENING] server is listening on IP: {SERVER}, Port Number: {PORT}")
     print()
     
     try:
