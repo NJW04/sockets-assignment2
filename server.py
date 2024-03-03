@@ -13,7 +13,7 @@ def get_local_ip():
     except socket.error:
         return "Unable to determine IP address"
 
-PORT = 5051
+PORT = 5050
 SERVER = get_local_ip() #Instead of hard coding in the IP Address this gets the IP Address of local machines
 ADDRESS = (SERVER,PORT) #This is the exact address with matching IP and Port number for the server
 FORMAT = 'utf-8'
@@ -31,7 +31,8 @@ activeUDPClientsUsername = {}
 help_message = "Available Commands:\n" \
                    "- !help: Display a list of available commands.\n" \
                    "- !list: Display a list of active clients.\n" \
-                   "- SEND <recipientUsername> <content>: Send a message to another client.\n" \
+                   "- !send <recipientUsername> <message>: Send a message to another client.\n" \
+                    "- !broadcast <message>: Broadcast a message to all other active clients.\n" \
                     "- !hide: Hide yourself to not appear to any other client\n" \
                     "- !active: Set yourself as active to be seen by other clients\n" \
                    "- !disconnect: Disconnect from the server.\n"
@@ -69,6 +70,16 @@ def handleClient(connectionSocket, addr):
                         connectionSocket.send("There are currently no active users showing up\n".encode(FORMAT))
                     else:
                         connectionSocket.send(returnStr.encode(FORMAT))
+                elif msg.startswith("!broadcast "): #You receive string: !broadcast Nathan Hello Everyone
+                    with socket.socket(socket.AF_INET,socket.SOCK_DGRAM) as broadcast_socket:
+                        for key,value in activeUDPClientsUsername.items():
+                            if key != msgArr[1]:
+                                ip = value[0]
+                                port = int(value[1])
+                                chatArr = [msgArr[0],msgArr[1], ' '.join(msgArr[2:])]
+                                broadcast_socket.sendto(f"BROADCAST {chatArr[1]} says: {chatArr[2]}".encode(FORMAT),(ip,port))
+                            else:  continue
+                    connectionSocket.send("Message has been broadcasted to all active clients.".encode(FORMAT))
                 elif msg == "!help":
                         connectionSocket.send(help_message.encode(FORMAT))
                 elif msgArr[0] == "!hide":
@@ -91,7 +102,7 @@ def handleClient(connectionSocket, addr):
                     result_string = ' '.join(str(element) for element in activeUDPClientsUsername[msg])    # 192.123.3.8 42598, this returns this string
                     connectionSocket.send(result_string.encode(FORMAT))                                    #This is sending a string with a space of the IP and PORT
                 elif msg not in activeUDPClientsUsername:
-                    connectionSocket.send(f"Invalid Command: {msg}").encode(FORMAT)
+                    connectionSocket.send((f"command does not exist on the server").encode(FORMAT))
                 else:
                     connectionSocket.send((f"Invalid Command: {msg}").encode(FORMAT))
         

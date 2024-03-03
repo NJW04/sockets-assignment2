@@ -39,7 +39,7 @@ def sendToFriend(socket,message,other_client_ip,other_client_port,username):
     
 def sendToFriendUDP(socket,message,other_client_ip,other_client_port,your_ip,your_port):
     friendAddress = (other_client_ip,other_client_port)
-    message = f"({your_ip},{your_port})" + " " + message + "\n>>"
+    message = f"({your_ip},{your_port})" + " " + message + "\n>>(type !help)"
     socket.sendto(message.encode(FORMAT), friendAddress)
     
 
@@ -56,11 +56,15 @@ def receive_messages(sock):
             if HIDDEN:
                 continue
             elif HIDDEN == False:
-                print(f"\n[{sender} says]: {message}")
+                if sender == "BROADCAST":
+                    print(f"\n[{sender}] {message}")
+                else:
+                    print(f"\n[{sender} says]: {message}")
     except Exception as e:
         print(f"Error listening for messages: {e}")
     finally:
-        sock.close()
+        #sock.close()
+        pass
 
 
 def start_client(main_UDP_socket,client_TCP_socket,username):
@@ -71,7 +75,7 @@ def start_client(main_UDP_socket,client_TCP_socket,username):
     
     #When they join the server they are defaulted to being active until they change it
     #global HIDDEN
-    HIDDEN = False
+    HIDDEN = False  
     
     while True:
         msgToSend = input("Enter command (use !help): ")
@@ -82,6 +86,7 @@ def start_client(main_UDP_socket,client_TCP_socket,username):
         elif len(msgToSendArr) == 1:
             if msgToSend == DISCONNECT_MESSAGE:
                 sendToServer(client_TCP_socket,msgToSend + " " + username)
+                HIDDEN = False
                 break
             elif msgToSend == "!active" or msgToSend == "!hide":
                 if msgToSend == "!hide":
@@ -93,7 +98,13 @@ def start_client(main_UDP_socket,client_TCP_socket,username):
             else:                   
                 sendToServer(client_TCP_socket,msgToSend)     #Only the 1 word commands that the server knows
         else:
-            if msgToSendArr[0] == "SEND":
+            if msgToSendArr[0] == "!broadcast":
+                msg = ' '.join(msgToSendArr[1:]) #hi everyone
+                contentArr = [msgToSendArr[0],username,msg]
+                content = ' '.join(map(str, contentArr))
+                print(sendToServerReturn(client_TCP_socket,content))    #You send string: !broadcast Nathan Hello Everyone
+                continue
+            elif msgToSendArr[0] == "!send":
                 matches = re.match(r'(\S+)\s+(\S+)\s+(.*)', msgToSend)
                 if matches:
                     command = matches.group(1)
@@ -101,7 +112,7 @@ def start_client(main_UDP_socket,client_TCP_socket,username):
                     message = matches.group(3) + '\n'
         
                     other_client_info = sendToServerReturn(client_TCP_socket,name)   #i.e Ben, this is receiving the IP and PORT number
-                    if other_client_info == "does not exist on the server":
+                    if other_client_info == "command does not exist on the server":
                         print(f"Username: {name}, does not exist on the server")
                     else:
                         other_client_info = other_client_info.split()
@@ -181,6 +192,7 @@ def sendThroughUDP():
 
          
 def mainLoop(main_UDP_socket):
+    global HIDDEN
     # Start a thread to receive messages instantly
     receive_thread = threading.Thread(target=receive_messages, args=(main_UDP_socket,))
     receive_thread.start()
@@ -194,6 +206,8 @@ def mainLoop(main_UDP_socket):
             connectToServer(main_udp_socket)
         elif userInput == "2":
             sendThroughUDP()
+        elif userInput == "!help":
+            pass
         elif userInput == "q":
             main_udp_socket.close()
         else:
@@ -202,7 +216,5 @@ def mainLoop(main_UDP_socket):
 
 main_udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 main_udp_socket.bind((get_local_ip(),0))
-global HIDDEN
-HIDDEN = False
 
 mainLoop(main_udp_socket)
