@@ -13,9 +13,8 @@ def get_local_ip():
     except socket.error:
         return "Unable to determine IP address"
 
-PORT = 5050
+PORT = 5051
 SERVER = get_local_ip() #Instead of hard coding in the IP Address this gets the IP Address of local machines
-#SERVER = "196.24.190.87"
 ADDRESS = (SERVER,PORT) #This is the exact address with matching IP and Port number for the server
 FORMAT = 'utf-8'
 DISCONNECT_MESSAGE = "!disconnect"
@@ -46,9 +45,9 @@ def handleClient(connectionSocket, addr):
             msg = connectionSocket.recv(2048).decode(FORMAT)   #Number of bytes it receives, it blocks on this line until it receives
             msgArr = msg.split()
             if msg:
-                if msgArr[0] == DISCONNECT_MESSAGE:
+                if msgArr[0] == DISCONNECT_MESSAGE:            #Completely removing all aspects of that client from the server when they diconnect
                     if addr in activeClients:
-                        activeClients.remove(addr)     #Removing the address from active clients
+                        activeClients.remove(addr)
                     del activeClientsUsername[msgArr[1]]
                     del activeUDPClientsUsername[msgArr[1]]
                     connectionSocket.send("You have disconnected,bye!".encode(FORMAT))
@@ -59,10 +58,9 @@ def handleClient(connectionSocket, addr):
                         connectionSocket.send("exists".encode(FORMAT))
                     else:
                         clientInfoArr = msg.split()
-                        activeClientsUsername[clientInfoArr[3]] = addr  #this is where it maps the clients username to their TCP port
-                        connectionSocket.send("you have successfully joined the server".encode(FORMAT))
+                        activeClientsUsername[clientInfoArr[3]] = addr  #Maps the clients username to their TCP port
+                        connectionSocket.send("you have successfully joined the server.".encode(FORMAT))
                 elif msg == "!list":
-                    
                     returnStr = "This is the list of active clients:\n"
                     for key, value in activeUDPClientsUsername.items():
                         if clientStatus[value] == "active":
@@ -88,12 +86,12 @@ def handleClient(connectionSocket, addr):
                 elif msgArr[0] == "UDP":    # 0 is string 'udp', 1 is ip, 2 is port number, 3 is username
                     activeUDPClientsUsername[msgArr[3]] = (msgArr[1],msgArr[2])
                     clientStatus[(msgArr[1],msgArr[2])] = "active"
-                    connectionSocket.send((f"\nThe UDP socket for you is {activeUDPClientsUsername[msgArr[3]]}").encode(FORMAT))
+                    connectionSocket.send((f"Reminder: Your UDP socket is {activeUDPClientsUsername[msgArr[3]]}").encode(FORMAT))
                 elif msg in activeUDPClientsUsername:
                     result_string = ' '.join(str(element) for element in activeUDPClientsUsername[msg])    # 192.123.3.8 42598, this returns this string
-                    connectionSocket.send(result_string.encode(FORMAT)) #This is sending a string with a space of the IP and PORT
+                    connectionSocket.send(result_string.encode(FORMAT))                                    #This is sending a string with a space of the IP and PORT
                 elif msg not in activeUDPClientsUsername:
-                    connectionSocket.send("does not exist on the server".encode(FORMAT))
+                    connectionSocket.send(f"Invalid Command: {msg}").encode(FORMAT)
                 else:
                     connectionSocket.send((f"Invalid Command: {msg}").encode(FORMAT))
         

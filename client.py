@@ -39,25 +39,28 @@ def sendToFriend(socket,message,other_client_ip,other_client_port,username):
     
 def sendToFriendUDP(socket,message,other_client_ip,other_client_port,your_ip,your_port):
     friendAddress = (other_client_ip,other_client_port)
-    message = f"({friendAddress[0]},{friendAddress[1]})" + " " + message
+    message = f"({your_ip},{your_port})" + " " + message
     socket.sendto(message.encode(FORMAT), friendAddress)
     
 
 def receive_messages(sock):
-    while True:
-        try:
+    try:
+        while True:
             data, addr = sock.recvfrom(1024)
-            data = data.decode(FORMAT)
-            dataArr = data.split(' ')
-            sender = dataArr[0]
-            dataArr = dataArr[1:]
-            message = ' '.join(dataArr)
-            if HIDDEN and sender != "Server":
+            message = data.decode(FORMAT)
+        
+            messageArr = message.split(' ')
+            sender = messageArr[0]
+            messageArr = messageArr[1:]
+            message = ' '.join(messageArr)
+            if HIDDEN:
                 continue
             elif HIDDEN == False:
                 print(f"\n[{sender} says]: {message}")
-        except socket.error:
-            break
+    except Exception as e:
+        print(f"Error listening for messages: {e}")
+    finally:
+        sock.close()
 
 
 def start_client(main_UDP_socket,client_TCP_socket,username):
@@ -67,11 +70,11 @@ def start_client(main_UDP_socket,client_TCP_socket,username):
     sendToServer(client_TCP_socket,f"UDP {udpAddress} {udpPort} {username}")  
     
     #When they join the server they are defaulted to being active until they change it
-    global HIDDEN
+    #global HIDDEN
     HIDDEN = False
     
     while True:
-        msgToSend = input("Enter command (use !help): ")
+        msgToSend = input("Enter command (use !help)>> ")
         print()
         msgToSendArr = msgToSend.split(" ") #['SEND', 'Nathan','Hi,','howsit'] ["!hide"]
         if not msgToSend:
@@ -90,7 +93,7 @@ def start_client(main_UDP_socket,client_TCP_socket,username):
             else:                   
                 sendToServer(client_TCP_socket,msgToSend)     #Only the 1 word commands that the server knows
         else:
-            if msgToSendArr[0] == "SEND":    #add more protection here
+            if msgToSendArr[0] == "SEND":
                 matches = re.match(r'(\S+)\s+(\S+)\s+(.*)', msgToSend)
                 if matches:
                     command = matches.group(1)
@@ -152,7 +155,7 @@ def connectToServer(main_udp_socket):
         client_TCP_socket.connect(ADDRESS) #Client connecting to address of server
         serverResponse = sendToServerReturn(client_TCP_socket,clientInfo)
         while serverResponse == "exists":
-            print("That username already exists\n")
+            print("That username already exists on the server, please enter a different one.\n")
             clientInfo = joinCommand()
             clientInfoArr = clientInfo.split()
             serverResponse = sendToServerReturn(client_TCP_socket,clientInfo)
@@ -166,70 +169,40 @@ def connectToServer(main_udp_socket):
    
 
 def sendThroughUDP():
-    solo_udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    solo_udp_socket.bind((get_local_ip(),0))
-    solo_udp_socketIP = solo_udp_socket.getsockname()[0]
-    solo_udp_socketPort = solo_udp_socket.getsockname()[1]
+    udp_socketIP = main_udp_socket.getsockname()[0]
+    udp_socketPort = main_udp_socket.getsockname()[1]
+    # Check the second word is in IP address format
     IPandPort = input("[Enter these parameters: <recepientIP> <recepientPort>]: ")
     IPandPortArr = IPandPort.split(' ')
     message = input("Now the message you wish to send: ")
     
-    sendToFriendUDP(solo_udp_socket,message + "\n1 - Join the server\n2 - Message another client through UDP\n3 - Share file through UDP\nq - Quit Program\n",IPandPortArr[0],int(IPandPortArr[1]),solo_udp_socketIP,solo_udp_socketPort)
-    solo_udp_socket.close()
+    sendToFriendUDP(main_udp_socket,message,IPandPortArr[0],int(IPandPortArr[1]),udp_socketIP,udp_socketPort)
     mainLoop(main_udp_socket)
 
-def sendFileUDP(udp_sock, file_path, receiver_ip,receiver_port):
-    try:
-        with open(file_path,'rb') as file:
-            #Send the file information, filename and size
-            file_name = os.path.basename(file_path)
-            file_size = os.path.getsize()
-            udp_sock.sendto(f"FILE {file_name} {file_size}".encode(FORMAT),(receiver_ip,receiver_port))
-            
-            #once the name and size have been sent and realized send the file in byte chunks
-            chunk_size =  1024
-            chunk = file.read(chunk_size)
-            while chunk:
-                udp_sock.sendto(chunk,(receiver_ip,receiver_port))
-                chunk = file.read(chunk_size)
-            print("File sent successfully")
-    except Exception as e:
-        print(f"Failure with sending file {e}")
-            
-
-
-def receive_file():
-    pass
          
 def mainLoop(main_UDP_socket):
     # Start a thread to receive messages instantly
     receive_thread = threading.Thread(target=receive_messages, args=(main_UDP_socket,))
     receive_thread.start()
-    print(f"YOUR MAIN RECEIVING SOCKET IS {main_udp_socket.getsockname()}\n")
+    print(f"\nYOUR MAIN RECEIVING SOCKET IS {main_udp_socket.getsockname()}\n")
     #ADDED STUFF
     userInput = ""
     print("Welcome to this chat application")
     while userInput != "q":
-        userInput = input("1 - Join the server\n2 - Message another client through UDP\n3 - Share file through UDP\nq - Quit Program\n").lstrip()
+        userInput = input("1 - Join the server\n2 - Message another client through UDP\nq - Quit Program\n>>").lstrip()
         if userInput == "1":
             connectToServer(main_udp_socket)
         elif userInput == "2":
             sendThroughUDP()
-        elif userInput == "3":
-            file_udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            file_udp_socket.bind((get_local_ip(),0))
-            IPandPort = input("[Enter these parameters: <recepientIP> <recepientPort>]: ")
-            IPandPortArr = IPandPort.split(' ')
-            file_path = input("Now the path of the file you want to send: ")
-            sendFileUDP(file_udp_socket,file_path,IPandPortArr[0],IPandPortArr[1])
-            file_udp_socket.close()
         elif userInput == "q":
             main_udp_socket.close()
         else:
             print("Invalid Input.")
 
 
-main_udp_socket = file_udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+main_udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 main_udp_socket.bind((get_local_ip(),0))
+global HIDDEN
+HIDDEN = False
 
 mainLoop(main_udp_socket)
