@@ -3,9 +3,6 @@ import threading
 import re
 import os
 
-FORMAT = 'utf-8'
-DISCONNECT_MESSAGE = "!disconnect"
-
 def get_local_ip():
     try:
         # Create a socket object and connect to an external server
@@ -20,67 +17,66 @@ def get_local_ip():
 def sendToServer(client_TCP_socket,msg):
     try:
         msg = msg.lstrip()
-        client_TCP_socket.send(msg.encode(FORMAT))    #Encoding it to be sent to the server
+        client_TCP_socket.send(msg.encode(FORMAT))      #Encoding it to be sent to the server
         
-        #Now to view the message sent from server back to client use
+        #View the message sent from server back to client
         print(client_TCP_socket.recv(2048).decode(FORMAT))
     except ConnectionError:
         # Handle the case where the connection fails or the server is unreachable
         print("Connection error: Server not available")
     
 def sendToServerReturn(client_TCP_socket,msg):
-    client_TCP_socket.send(msg.encode(FORMAT))    #Encoding it to be sent to the server
+    client_TCP_socket.send(msg.encode(FORMAT))          #Encoding it to be sent to the server
     return (client_TCP_socket.recv(2048).decode(FORMAT))
     
+#This method is used when we get the IP and Port number from the server
 def sendToFriend(socket,message,other_client_ip,other_client_port,username):
     friendAddress = (other_client_ip,other_client_port)
     message = username + " " + message + "\nEnter command (use !help): "
     socket.sendto(message.encode(FORMAT), friendAddress)
     
+#This method is used when we have to manually enter the IP and Port number
 def sendToFriendUDP(socket,message,other_client_ip,other_client_port,your_ip,your_port):
     friendAddress = (other_client_ip,other_client_port)
     message = f"({your_ip},{your_port})" + " " + message + "\n>>(type !help)"
     socket.sendto(message.encode(FORMAT), friendAddress)
     
-
 def receive_messages(sock):
     try:
         while True:
             data, addr = sock.recvfrom(1024)
             message = data.decode(FORMAT)
-        
             messageArr = message.split(' ')
-            sender = messageArr[0]
+            sender = messageArr[0]                                                  #Seeing what kind of message is being sent and how to interpret it
             messageArr = messageArr[1:]
             message = ' '.join(messageArr)
-            if HIDDEN:
+            if HIDDEN:                                                              #If client is hidden do not print out received method
                 continue
             elif HIDDEN == False:
                 if sender == "BROADCAST":
-                    print(f"\n[{sender}] {message}")
+                    print(f"\n[{sender}] {message} \nEnter command (use !help):")   #Display it in the correct broadcast format
                 else:
                     print(f"\n[{sender} says]: {message}")
     except Exception as e:
         print(f"Error listening for messages: {e}")
     finally:
-        #sock.close()
         pass
 
 
 def start_client(main_UDP_socket,client_TCP_socket,username):
-    udpAddress, udpPort = main_UDP_socket.getsockname()    #Different port and ip for udp socket
+    udpAddress, udpPort = main_UDP_socket.getsockname()    #Port and ip for udp socket
     
     print(f"\n{username}, you have successfully joined the server")
     sendToServer(client_TCP_socket,f"UDP {udpAddress} {udpPort} {username}")  
     
     #When they join the server they are defaulted to being active until they change it
-    #global HIDDEN
+    global HIDDEN
     HIDDEN = False  
     
     while True:
         msgToSend = input("Enter command (use !help): ")
         print()
-        msgToSendArr = msgToSend.split(" ") #['SEND', 'Nathan','Hi,','howsit'] ["!hide"]
+        msgToSendArr = msgToSend.split(" ") #['JOIN', '192.168.3.223','5050','Nathan']
         if not msgToSend:
             print("Empty command")
         elif len(msgToSendArr) == 1:
@@ -88,7 +84,7 @@ def start_client(main_UDP_socket,client_TCP_socket,username):
                 sendToServer(client_TCP_socket,msgToSend + " " + username)
                 HIDDEN = False
                 break
-            elif msgToSend == "!active" or msgToSend == "!hide":
+            elif msgToSend == "!active" or msgToSend == "!hide":                    #If client wants to change their state on the server, it changes it client side as well
                 if msgToSend == "!hide":
                     HIDDEN = True
                 if msgToSend == "!active":
@@ -96,16 +92,16 @@ def start_client(main_UDP_socket,client_TCP_socket,username):
                 msgToSend += " " + udpAddress + " " + str(udpPort)
                 sendToServer(client_TCP_socket,msgToSend)
             else:                   
-                sendToServer(client_TCP_socket,msgToSend)     #Only the 1 word commands that the server knows
+                sendToServer(client_TCP_socket,msgToSend)                           #Only the 1 word commands that the server knows
         else:
             if msgToSendArr[0] == "!broadcast":
-                msg = ' '.join(msgToSendArr[1:]) #hi everyone
+                msg = ' '.join(msgToSendArr[1:])
                 contentArr = [msgToSendArr[0],username,msg]
                 content = ' '.join(map(str, contentArr))
-                print(sendToServerReturn(client_TCP_socket,content))    #You send string: !broadcast Nathan Hello Everyone
+                print(sendToServerReturn(client_TCP_socket,content))                #You send string: !broadcast Nathan Hello Everyone
                 continue
             elif msgToSendArr[0] == "!send":
-                matches = re.match(r'(\S+)\s+(\S+)\s+(.*)', msgToSend)
+                matches = re.match(r'(\S+)\s+(\S+)\s+(.*)', msgToSend)              #This is used to properly string slice the command, username and then rest of the message accounting for different punctuation marks
                 if matches:
                     command = matches.group(1)
                     name = matches.group(2)
@@ -157,13 +153,13 @@ def connectToServer(main_udp_socket):
     client_TCP_socket = socket.socket(socket.AF_INET,socket.SOCK_STREAM)    
 
     clientInfo = joinCommand()
-    clientInfoArr = clientInfo.split()   #[JOIN],[123.123.4.5],[5050],Nathan
+    clientInfoArr = clientInfo.split()                                      #[JOIN],[192.168.3.223],[5050],Nathan
     PORT = int(clientInfoArr[2])
     SERVER = clientInfoArr[1]
     ADDRESS = (SERVER,PORT)
 
     try:
-        client_TCP_socket.connect(ADDRESS) #Client connecting to address of server
+        client_TCP_socket.connect(ADDRESS)                                  #Client connecting to address of server
         serverResponse = sendToServerReturn(client_TCP_socket,clientInfo)
         while serverResponse == "exists":
             print("That username already exists on the server, please enter a different one.\n")
@@ -171,7 +167,7 @@ def connectToServer(main_udp_socket):
             clientInfoArr = clientInfo.split()
             serverResponse = sendToServerReturn(client_TCP_socket,clientInfo)
                 
-        start_client(main_udp_socket,client_TCP_socket,clientInfoArr[3])
+        start_client(main_udp_socket,client_TCP_socket,clientInfoArr[3])    #Starting the client with their 2 types of sockets and their unique username
     except (socket.error, socket.timeout,ConnectionError) as e:
             print(f"Error: Unable to connect to the server. {e}")
 
@@ -182,22 +178,24 @@ def connectToServer(main_udp_socket):
 def sendThroughUDP():
     udp_socketIP = main_udp_socket.getsockname()[0]
     udp_socketPort = main_udp_socket.getsockname()[1]
-    # Check the second word is in IP address format
+    
     IPandPort = input("[Enter these parameters: <recepientIP> <recepientPort>]: ")
     IPandPortArr = IPandPort.split(' ')
     message = input("Now the message you wish to send: ")
     
+    #Need to supply and remember recepient IP and Port and sender IP and Port
     sendToFriendUDP(main_udp_socket,message,IPandPortArr[0],int(IPandPortArr[1]),udp_socketIP,udp_socketPort)
     mainLoop(main_udp_socket)
 
          
 def mainLoop(main_UDP_socket):
     global HIDDEN
+    HIDDEN = False
     # Start a thread to receive messages instantly
     receive_thread = threading.Thread(target=receive_messages, args=(main_UDP_socket,))
     receive_thread.start()
     print(f"\nYOUR MAIN RECEIVING SOCKET IS {main_udp_socket.getsockname()}\n")
-    #ADDED STUFF
+    
     userInput = ""
     print("Welcome to this chat application")
     while userInput != "q":
@@ -214,7 +212,11 @@ def mainLoop(main_UDP_socket):
             print("Invalid Input.")
 
 
+FORMAT = 'utf-8'
+DISCONNECT_MESSAGE = "!disconnect"
+#As soon as the client is run make its main UDP socket variable
 main_udp_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 main_udp_socket.bind((get_local_ip(),0))
 
+#Jump to main program loop
 mainLoop(main_udp_socket)
