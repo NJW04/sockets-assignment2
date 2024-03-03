@@ -39,7 +39,7 @@ def sendToFriend(socket,message,other_client_ip,other_client_port,username):
     
 def sendToFriendUDP(socket,message,other_client_ip,other_client_port,your_ip,your_port):
     friendAddress = (other_client_ip,other_client_port)
-    message = f"({your_ip},{your_port})" + " " + message
+    message = f"({your_ip},{your_port})" + " " + message + "\n>>"
     socket.sendto(message.encode(FORMAT), friendAddress)
     
 
@@ -74,7 +74,7 @@ def start_client(main_UDP_socket,client_TCP_socket,username):
     HIDDEN = False
     
     while True:
-        msgToSend = input("Enter command (use !help)>> ")
+        msgToSend = input("Enter command (use !help): ")
         print()
         msgToSendArr = msgToSend.split(" ") #['SEND', 'Nathan','Hi,','howsit'] ["!hide"]
         if not msgToSend:
